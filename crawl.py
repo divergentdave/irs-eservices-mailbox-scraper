@@ -13,7 +13,7 @@ RE_CONTENT_DISPOSITION = re.compile("^attachment; filename=(.*)$")
 
 
 def main():
-    os.makedirs(DIR)
+    os.makedirs(DIR, exist_ok=True)
     credentials = yaml.load(open("credentials.yaml"))
 
     br = mechanicalsoup.Browser(soup_config={"features": "lxml"})
