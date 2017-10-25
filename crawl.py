@@ -5,6 +5,7 @@ import re
 import shutil
 import time
 import urllib
+import urllib.parse
 import yaml
 
 DIR = "files"
@@ -19,25 +20,19 @@ def main():
     br = mechanicalsoup.Browser(soup_config={"features": "lxml"})
     br.session.headers.update({"Accept-Language": "en-US,en;q=0.8"})
 
-    signon_page = br.get("https://la.www4.irs.gov/PORTAL-PROD/CRM/signon.html")
+    signon_page = br.get("https://la.www4.irs.gov/semail/views/list_mail")
     signon_form = signon_page.soup.form
     username_input = signon_form.select("input[name=USER]")[0]
     username_input["value"] = credentials["username"]
     password_input = signon_form.select("input[name=PASSWORD]")[0]
     password_input["value"] = credentials["password"]
-    interstitial_page = br.submit(signon_form, signon_page.url)
-    user_page = br.submit(interstitial_page.soup.form, interstitial_page.url)
-    user_form = user_page.soup.form
-    user_radio = user_page.soup.select("input[name=USER]")[-1]
-    user_radio["checked"] = ""
-    user_form.append(user_radio.extract())  # input was outside of form
-    login_done_page = br.submit(user_form, user_page.url)
-    refresh_content = login_done_page.soup.meta["content"]
-    refresh_url = refresh_content[refresh_content.index("=") + 1:]
-    refresh_url = urllib.parse.urljoin(login_done_page.url, refresh_url)
-    br.get(refresh_url)
+    interstitial_page = br.submit(signon_form, urllib.parse.urljoin(
+        signon_page.url, signon_form["action"]))
+    list_page = br.submit(interstitial_page.soup.form, urllib.parse.urljoin(
+        interstitial_page.url, interstitial_page.soup.form["action"]))
 
-    list_page = br.get("https://la.www4.irs.gov/semail/views/list_mail")
+    if not "irs.gov/semail/views/list_mail" in list_page.url:
+        raise Exception("Login failed, landed on {}".format(list_page.url))
     message_links = list_page.soup.find_all("a", text="Read")
     print("{} messages in mailbox".format(len(message_links)))
     for subject_link in list_page.soup.select("a.subject-link"):
